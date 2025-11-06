@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Garbage_Duty_Schedule")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+6f121c054eeebf73341b7656321abab28a600a42")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+627b400778f8298c5ae26ffe66e1c44155a363b9")]
 [assembly: System.Reflection.AssemblyProductAttribute("Garbage_Duty_Schedule")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Garbage_Duty_Schedule")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
