@@ -1,0 +1,242 @@
+@page "/garbage-schedule"
+@using Garbage_Duty_Schedule.Data
+@using Garbage_Duty_Schedule.Models
+@using Garbage_Duty_Schedule.Services
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext Db
+@inject RotationService Rotation
+@inject IJSRuntime JS
+
+<PageTitle>Garbage Duty Schedule</PageTitle>
+
+<h1 class="title">🗓️ ตารางเวรทิ้งขยะ</h1>
+
+<div class="toolbar">
+    <input type="month" @bind="monthStr" class="input" />
+    <button class="btn" @onclick="Generate">Generate</button>
+    <button class="btn outline" @onclick="ExportCsv">Export CSV</button>
+    <label class="skip-checkbox"><input type="checkbox" @bind="skipWeekend" /> ข้าม เสาร์/อาทิตย์</label>
+</div>
+
+@if (rows is null)
+{
+    <p>เลือกเดือนแล้วกด Generate</p>
+}
+else
+{
+    <div class="calendar">
+        @foreach (var row in rows)
+        {
+            <div class="row">
+                @foreach (var cell in row)
+                {
+                    <div class="cell @GetCellClasses(cell)">
+                        <div class="date">@cell.Date.Day</div>
+
+                        @if (!cell.IsCurrentMonth)
+                        {
+                            <div class="placeholder"></div>
+                        }
+                        else if (cell.IsHoliday)
+                        {
+                            <div class="member holiday-label">หยุด</div>
+                        }
+                        else
+                        {
+                            <select class="member" value="@GetMemberValue(cell.MemberId)" @onchange="async e => await OnChangeMember(cell.Date, e)">
+                                <option value="">— เลือก —</option>
+                                @foreach (var member in members)
+                                {
+                                    <option value="@member.Id">@member.Name</option>
+                                }
+                            </select>
+                        }
+
+                        @if (cell.IsCurrentMonth)
+                        {
+                            <input class="note" placeholder="หมายเหตุ" value="@GetNoteValue(cell.Note)" @onchange="async e => await OnChangeNote(cell.Date, e)" />
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private record Cell(DateOnly Date, int? MemberId, bool IsHoliday, string? Note, bool IsCurrentMonth)
+    {
+        public bool IsToday => IsCurrentMonth && Date == DateOnly.FromDateTime(DateTime.Today);
+    }
+
+    private List<Member> members = new();
+    private List<List<Cell>>? rows;
+    private bool skipWeekend = true;
+    private string monthStr = DateTime.Today.ToString("yyyy-MM");
+    private int currentYear;
+    private int currentMonth;
+
+    protected override async Task OnInitializedAsync()
+    {
+        members = await Db.Members
+            .OrderBy(m => m.OrderIndex)
+            .ThenBy(m => m.Id)
+            .ToListAsync();
+
+        var (year, month) = ParseMonth(monthStr);
+        await LoadGrid(year, month);
+    }
+
+    private async Task Generate()
+    {
+        var (year, month) = ParseMonth(monthStr);
+        var skipDays = skipWeekend
+            ? new[] { DayOfWeek.Saturday, DayOfWeek.Sunday }
+            : Array.Empty<DayOfWeek>();
+
+        await Rotation.GenerateMonthAsync(year, month, skipDays);
+        await LoadGrid(year, month);
+    }
+
+    private async Task LoadGrid(int year, int month)
+    {
+        currentYear = year;
+        currentMonth = month;
+
+        var firstOfMonth = new DateOnly(year, month, 1);
+        var lastOfMonth = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+        var start = firstOfMonth.AddDays(-(int)firstOfMonth.DayOfWeek);
+        var end = lastOfMonth.AddDays(6 - (int)lastOfMonth.DayOfWeek);
+
+        var duties = await Db.Duties
+            .Include(d => d.Member)
+            .Where(d => d.Date >= start && d.Date <= end)
+            .ToDictionaryAsync(d => d.Date);
+
+        var cells = new List<Cell>();
+        for (var date = start; date <= end; date = date.AddDays(1))
+        {
+            if (duties.TryGetValue(date, out var duty))
+            {
+                cells.Add(new Cell(date, duty.MemberId, duty.IsHoliday, duty.Note, date.Month == month));
+            }
+            else
+            {
+                cells.Add(new Cell(date, null, false, null, date.Month == month));
+            }
+        }
+
+        rows = Chunk(cells, 7);
+        StateHasChanged();
+    }
+
+    private async Task OnChangeMember(DateOnly date, ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString();
+        int? memberId = string.IsNullOrWhiteSpace(value) ? null : int.Parse(value);
+
+        await Rotation.SetMemberAsync(date, memberId);
+        await Db.SaveChangesAsync();
+        await LoadGrid(currentYear, currentMonth);
+    }
+
+    private async Task OnChangeNote(DateOnly date, ChangeEventArgs e)
+    {
+        var note = e.Value?.ToString();
+        await Rotation.SetNoteAsync(date, string.IsNullOrWhiteSpace(note) ? null : note);
+        await Db.SaveChangesAsync();
+        await LoadGrid(currentYear, currentMonth);
+    }
+
+    private async Task ExportCsv()
+    {
+        var (year, month) = ParseMonth(monthStr);
+        var first = new DateOnly(year, month, 1);
+        var last = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
+
+        var duties = await Db.Duties
+            .Include(d => d.Member)
+            .Where(d => d.Date >= first && d.Date <= last)
+            .OrderBy(d => d.Date)
+            .ToListAsync();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Date,Member,IsHoliday,Note");
+        foreach (var duty in duties)
+        {
+            var memberName = duty.Member?.Name ?? string.Empty;
+            var note = duty.Note ?? string.Empty;
+            var line = string.Join(',',
+                duty.Date.ToString("yyyy-MM-dd"),
+                Escape(memberName),
+                duty.IsHoliday,
+                Escape(note));
+            sb.AppendLine(line);
+        }
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadCsv", $"garbage-duty-{year}-{month:00}.csv", base64);
+    }
+
+    private static (int Year, int Month) ParseMonth(string monthValue)
+    {
+        var parts = monthValue.Split('-', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 2)
+        {
+            throw new InvalidOperationException($"Invalid month format: {monthValue}");
+        }
+
+        return (int.Parse(parts[0]), int.Parse(parts[1]));
+    }
+
+    private static List<List<Cell>> Chunk(List<Cell> source, int size)
+    {
+        var result = new List<List<Cell>>();
+        for (var i = 0; i < source.Count; i += size)
+        {
+            var chunk = source.Skip(i).Take(size).ToList();
+            if (chunk.Count > 0)
+            {
+                result.Add(chunk);
+            }
+        }
+
+        return result;
+    }
+
+    private static string GetCellClasses(Cell cell)
+    {
+        var builder = new List<string>();
+        if (cell.IsToday)
+        {
+            builder.Add("today");
+        }
+
+        if (cell.IsHoliday)
+        {
+            builder.Add("holiday");
+        }
+
+        if (!cell.IsCurrentMonth)
+        {
+            builder.Add("inactive");
+        }
+
+        return string.Join(' ', builder);
+    }
+
+    private static string GetMemberValue(int? memberId) => memberId?.ToString() ?? string.Empty;
+
+    private static string GetNoteValue(string? note) => note ?? string.Empty;
+
+    private static string Escape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return string.Empty;
+        }
+
+        return $"\"{value.Replace("\"", "\"\"")}\"";
+    }
+}
