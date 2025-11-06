@@ -49,3 +49,137 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+.title {
+    font-weight: 700;
+    margin: 1rem 0 0.5rem;
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.toolbar .btn {
+    padding: 0.5rem 0.9rem;
+    border-radius: 10px;
+    border: none;
+    background: #4f46e5;
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease-in-out;
+}
+
+.toolbar .btn:hover {
+    background: #4338ca;
+}
+
+.toolbar .btn.outline {
+    background: #fff;
+    border: 1px solid #c7c7ff;
+    color: #3730a3;
+}
+
+.toolbar .btn.outline:hover {
+    background: #eef2ff;
+}
+
+.toolbar .input {
+    padding: 0.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    min-width: 9rem;
+}
+
+.toolbar .skip-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.95rem;
+}
+
+.calendar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.row {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.cell {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0.75rem;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background: #fff;
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.cell.today {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.35);
+}
+
+.cell.holiday {
+    background: #fef3c7;
+}
+
+.cell.inactive {
+    background: #f9fafb;
+    color: #9ca3af;
+}
+
+.cell .date {
+    font-weight: 600;
+}
+
+.cell .member {
+    width: 100%;
+    padding: 0.4rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.95rem;
+}
+
+.cell.inactive .member,
+.cell.inactive .note {
+    display: none;
+}
+
+.holiday-label {
+    font-weight: 600;
+    color: #b45309;
+}
+
+.note {
+    width: 100%;
+    padding: 0.45rem;
+    border: 1px dashed #d1d5db;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.placeholder {
+    flex-grow: 1;
+}
+
+@media (max-width: 768px) {
+    .row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .cell {
+        min-height: 140px;
+    }
+}
