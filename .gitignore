@@ -1,0 +1,29 @@
+﻿# Visual Studio / Rider
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+
+# ASP.NET / Blazor temp
+*.scblazor
+*.rz.scp.js
+*.g.cs
+
+# Logs / cache
+*.log
+*.tlog
+
+# User secrets (ถาม)
+**/secrets.json
+
+# Misc
+Thumbs.db
