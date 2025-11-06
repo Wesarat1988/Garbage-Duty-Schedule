@@ -1,0 +1,1 @@
+C:\Users\wesnakph\source\repos\Garbage Duty Schedule\Garbage Duty Schedule\Garbage Duty Schedule.Client\obj\Debug\net8.0\staticwebassets.build.json
